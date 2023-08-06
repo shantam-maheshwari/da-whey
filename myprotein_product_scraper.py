@@ -2,6 +2,7 @@
 Creates a Product object from a product url.
 """
 
+import logging
 import re
 import time
 
@@ -23,9 +24,8 @@ class MyproteinProductScraper:
         self._wait = WebDriverWait(self._driver, 10)
 
         self._driver.get(url)
-        if not headless:
-            self._reject_all_cookies()
-            self._close_email_popup()
+        self._reject_all_cookies()
+        self._close_email_popup()
 
     def __enter__(self):
         return self
@@ -64,6 +64,7 @@ class MyproteinProductScraper:
 
     def scrape(self) -> Product:
         product_name = self._get_product_name()
+        logging.info(f"Scraping product: {product_name}")
         product_flavours = self._get_product_flavours()
         product = Product(product_name, self._url, product_flavours)
         return product
@@ -80,6 +81,7 @@ class MyproteinProductScraper:
         )
         flavour_options = self._driver.find_elements(*flavour_option_locator)
         number_of_flavours = len(flavour_options)
+        logging.info(f"\tNumber of flavours: {number_of_flavours}")
 
         flavour_names = [option.text.strip() for option in flavour_options]
         flavour_price_infos = [
@@ -89,6 +91,7 @@ class MyproteinProductScraper:
         return list(zip(flavour_names, flavour_price_infos))
 
     def _get_nth_flavour_price_info(self, n: int) -> list:
+        logging.info(f"\tScraping prices for flavour: {n+1}")
         self._select_nth_flavour(n)
 
         amount_btn_locator = (
@@ -127,9 +130,10 @@ class MyproteinProductScraper:
 
     def _select_nth_amount(self, n: int):
         amount_btn_locator = (
-            By.CLASS_NAME,
-            "athenaProductVariations_box.default.athenaProductVariationsOption",
+            By.CSS_SELECTOR,
+            f".athenaProductVariations_list li:nth-of-type({n+1}) button",
         )
-        amount_btn = self._driver.find_elements(*amount_btn_locator)[n]
+        self._wait.until(EC.element_to_be_clickable(amount_btn_locator))
+        amount_btn = self._driver.find_element(*amount_btn_locator)
         amount_btn.click()
         time.sleep(1)
